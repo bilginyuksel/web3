@@ -37,5 +37,33 @@ solana balance <pubkey> --url https://api.devnet.solana.com
 ```bash
 solana-keygen new --outfile wallets/solana/second.json
 
-solana transfer --from wallets/solana/second.json <recipient> 0.5 --allow-unfunded-recipient --url https://api.devnet.solana.com --fee-payer wallets/solana/second.json
+solana transfer --from wallets/solana/second.json <recipient> 0.5 \
+--allow-unfunded-recipient \
+--fee-payer wallets/solana/second.json \
+--url https://api.devnet.solana.com
+```
+
+5. Create stake account
+
+Create a new wallet for stake acocunt.
+
+```bash
+solana-keygen new -o wallets/solana/staking.json
+```
+
+Create stake account with the wallet already created.
+
+```bash
+solana create-stake-account --from wallets/solana/default.json \
+    wallets/solana/staking.json 1.2 \
+    --stake-authority <keypair> \
+    --withdraw-authority <keypair> \
+    --fee-payer <keypair> \
+    --url https://api.devnet.solana.com
+```
+
+View the new stake account
+
+```bash
+solana stake-account <stake-account-address> --url https://api.devnet.solana.com
 ```
