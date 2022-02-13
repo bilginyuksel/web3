@@ -24,5 +24,7 @@ solana balance <pubkey> --url https://api.devnet.solana.com
 3. Create another wallet and make transfer
 
 ```bash
-solana transfer --from <sender-filepath> <recipient> 0.5 --allow-unfunded-recipient --url https://api.devnet.solana.com --fee-payer <filepath>
+solana-keygen new --outfile wallets/solana/second.json
+
+solana transfer --from wallets/solana/second.json <recipient-pub> 0.5 --allow-unfunded-recipient --url https://api.devnet.solana.com --fee-payer wallets/solana/second.json
 ```
