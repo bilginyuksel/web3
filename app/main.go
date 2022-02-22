@@ -1,13 +1,16 @@
 package main
 
 import (
+	"app/internal/handler"
+	"app/internal/service"
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/algorand/go-algorand-sdk/client/kmd"
 	"github.com/algorand/go-algorand-sdk/client/v2/algod"
 	"github.com/algorand/go-algorand-sdk/client/v2/indexer"
+	"github.com/algorand/go-algorand-sdk/future"
+	"github.com/labstack/echo/v4"
 	"github.com/yudai/pp"
 )
 
@@ -33,32 +36,65 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Printf("algod: %T, kmd: %T\n", algodClient, kmdClient)
-
-	s, err := algodClient.Status().Do(context.Background())
+	indexerClient, _ := indexer.MakeClient(_indexerAddress, _indexerToken)
 	if err != nil {
 		panic(err)
 	}
-	pp.Println(s)
 
-	tot, txs, err := algodClient.PendingTransactions().Do(context.Background())
+	e := echo.New()
+
+	transactionService := service.NewTransaction(algodClient, kmdClient, indexerClient)
+	transactionHandler := handler.NewTransaction(transactionService)
+
+	transactionHandler.RegisterRoutes(e)
+
+	if err := e.Start(":8080"); err != nil {
+		panic(err)
+	}
+}
+
+var (
+	receiver = "FJKB3ZN467HCFDIPD5S3DFXWFBXZ2EPJVOQLY3E5VUSCFFC4VNMIZI7PEE"
+	sender   = "UGRUK2CXCHPXTMWPB4PEWCQFEVRSFBATBAEWR2ZURFC4HYVA2TSHV2MOZU"
+	walletID = "7eec4313bd3d78352bf9a1d8234a0a3a"
+)
+
+// StartTransaction ...
+func StartTransaction(algoClient *algod.Client, kmdClient kmd.Client) {
+	walletResponse, err := kmdClient.ListWallets()
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("total txs:", tot)
-	pp.Println(txs)
 
-	wallets, err := kmdClient.ListWallets()
+	defaultWallet := walletResponse.Wallets[0]
+	pp.Println(defaultWallet)
+
+	walletHandle, err := kmdClient.InitWalletHandle(defaultWallet.ID, "")
 	if err != nil {
 		panic(err)
 	}
-	pp.Println(wallets)
 
-	indxer, _ := indexer.MakeClient(_indexerAddress, _indexerToken)
-	acc, err := indxer.SearchAccounts().Do(context.Background())
+	walletHandleToken := walletHandle.WalletHandleToken
+
+	txParams, err := algoClient.SuggestedParams().Do(context.Background())
 	if err != nil {
 		panic(err)
 	}
-	pp.Println(acc)
 
+	transaction, err := future.MakePaymentTxn(sender, receiver, 10, nil, "", txParams)
+	if err != nil {
+		panic(err)
+	}
+
+	signedTransaction, err := kmdClient.SignTransaction(walletHandleToken, "", transaction)
+	if err != nil {
+		panic(err)
+	}
+
+	rawTransaction, err := algoClient.SendRawTransaction(signedTransaction.SignedTransaction).Do(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
+	pp.Println(rawTransaction)
 }
